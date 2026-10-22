@@ -39,60 +39,39 @@ val wayBits = 3
 
 ## 例：L1D 发 ReadShared，并在接受数据后回 CompAck
 
-ReadShared、ReadUnique、MakeUnique 需要 CompAck。`CompactChiEdge.responseNeedsAck` 看的是当初发出的 REQ opcode，不是完成消息的 opcode。请求方必须自己按 TxnID 记住这笔请求。库不配对、不数拍。
+请求方模块里已经有 `val port = IO(new CompactChiRequesterIO(c, wayBits))`。ReadShared 只用 `port.req`、`port.rxDat` 和 `port.txRsp`。它不走 `evt`、`txDat`、`rxRsp`、`rxSnp`，所以这里不给这四个通道赋值。
 
-一条 64 字节的缓存行会拆成 `512 / dataBits` 拍。默认 256 位数据是 2 拍。CompAck 只发一次，并且要等请求方接受完最后一拍。不要在每一拍 CompData 上各发一个。`compAck` 只填 Flit：`txnID` 取保留的那拍完成消息的 `dbID`，源和目标对调，`traceTag` 原样带上，其余字段为 0。
-
-ReadUnique 可能只返回 Comp、不返回数据。`expCompData` 置 1 时，手册不允许 Completer 走这条路径。只收到 Comp 时，改保留 `rxRsp.bits`，再调用 `CompactChiEdge.compAck(c, completionRsp)`。不要对 ReadOnce、ReadNoSnp、CMO、Stash 或写请求发 CompAck。
+`compAck` 只填回复，不决定何时发送。`txnID` 取 CompData 的 `dbID`，不是原请求的 `txnID`；源和目标对调。一条 64 字节的行有 `512 / dataBits` 拍，默认 256 位数据是 2 拍。CompAck 等最后一拍被接受后发一次。下面只跟踪一笔在途事务；多个 TxnID 要分开计数。控制器若还要用 `txRsp` 发 SnpResp，需要自己仲裁，不能同时驱动这一位。
 
 ```scala
-class ReadSharedPort(c: CompactChiParams, wayBits: Int) extends Module {
-  val io = IO(new Bundle {
-    val chi = new CompactChiRequesterIO(c, wayBits)
-    val send = Input(Bool())
-    val savedOpcode = Input(UInt(c.reqOpcodeBits.W))
-    val addr = Input(UInt(c.addrBits.W))
-    val srcID = Input(UInt(c.upstreamNodeIdBits.W))
-    val tgtID = Input(UInt(c.downstreamNodeIdBits.W))
-    val txnID = Input(UInt(c.txnIdBits.W))
-  })
-  val beats = 512 / c.dataBits
+val beats = 512 / c.dataBits
+val req = Wire(new CompactChiReqFlit(c, wayBits))
+req := 0.U.asTypeOf(req)
+req.opcode := CompactChiOpcode.Req.ReadShared
+req.size := 6.U // Size 0b110，64 字节
+req.addr := addr
+req.srcID := srcID
+req.tgtID := tgtID
+req.txnID := txnID
+port.req.valid := send
+port.req.bits := req
 
-  val req = Wire(new CompactChiReqFlit(c, wayBits))
-  req := 0.U.asTypeOf(req)
-  req.opcode := CompactChiOpcode.Req.ReadShared
-  req.size := 6.U // Size 0b110，64 字节
-  req.addr := io.addr
-  req.srcID := io.srcID
-  req.tgtID := io.tgtID
-  req.txnID := io.txnID
-  io.chi.req.valid := io.send
-  io.chi.req.bits := req
-
-  io.chi.evt.valid := false.B
-  io.chi.evt.bits := 0.U.asTypeOf(new CompactChiEvtFlit(c, wayBits))
-  io.chi.txDat.valid := false.B
-  io.chi.txDat.bits := 0.U.asTypeOf(new CompactChiUpDatFlit(c))
-  io.chi.rxRsp.ready := true.B
-  io.chi.rxSnp.ready := true.B
-
-  val seen = RegInit(0.U(log2Ceil(beats + 1).W))
-  val pending = RegInit(false.B)
-  val completion = Reg(new CompactChiDownDatFlit(c))
-  io.chi.rxDat.ready := !pending
-  when (io.chi.rxDat.fire) {
-    completion := io.chi.rxDat.bits
-    val last = seen + 1.U === beats.U
-    seen := Mux(last, 0.U, seen + 1.U)
-    pending := last
-  }
-  io.chi.txRsp.valid := pending && CompactChiEdge.responseNeedsAck(io.savedOpcode)
-  io.chi.txRsp.bits := CompactChiEdge.compAck(c, completion)
-  when (io.chi.txRsp.fire) { pending := false.B }
+val seen = RegInit(0.U(log2Ceil(beats + 1).W))
+val pending = RegInit(false.B)
+val completion = Reg(new CompactChiDownDatFlit(c))
+port.rxDat.ready := !pending
+when (port.rxDat.fire) {
+  completion := port.rxDat.bits
+  val last = seen + 1.U === beats.U
+  seen := Mux(last, 0.U, seen + 1.U)
+  pending := last
 }
+port.txRsp.valid := pending
+port.txRsp.bits := CompactChiEdge.compAck(c, completion)
+when (port.txRsp.fire) { pending := false.B }
 ```
 
-`savedOpcode` 必须是这笔 `rxDat.txnID` 对应的原请求。这里的拍计数只覆盖一笔在途的数据完成；多个 TxnID 同时返回时要分开计数。上面把 `rxRsp.ready` 和 `rxSnp.ready` 恒置为真，只是为了把 CompAck 的填法写完整；真正的控制器不能这样丢掉 Snoop 和没有数据的完成消息。`txRsp` 上的 CompAck 和 SnpResp 也要自己仲裁。
+ReadUnique、MakeUnique 也要 CompAck。ReadUnique 可能只在 `rxRsp` 上返回 Comp、不走 `rxDat`；这时保留该 Comp，调用 `CompactChiEdge.compAck(c, comp)`。MakeUnique 的完成在 AnserL2 上就是这条 RSP，不会出现在 `rxDat`。`CompactChiEdge.responseNeedsAck` 看的是当初的 REQ opcode。ReadOnce、ReadNoSnp、CMO、Stash 和写请求不要发 CompAck。
 
 ## 例：L1I 发 ReadOnce，并用 SnpResp 回复 SnpMakeInvalid
 
