@@ -1,0 +1,22 @@
+# Mill / Scala / IDE output
+out/
+build/
+.metals/
+.bsp/
+.bloop/
+.idea/
+.DS_Store
+
+# VS Code temporary files
+.vscode/
+*.code-workspace
+
+# AI / agent files
+.pi/
+.cursor/
+.claude/
+.aider*
+.copilot*
+AGENTS.md
+**/AGENTS.md
+*.agent.md
