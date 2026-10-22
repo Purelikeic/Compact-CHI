@@ -18,6 +18,7 @@ object CompactChiEdge {
     CompactChiOpcode.Req.WriteUniqueFull, CompactChiOpcode.Req.CleanShared,
     CompactChiOpcode.Req.CleanInvalid, CompactChiOpcode.Req.MakeInvalid,
     CompactChiOpcode.Req.ReadUnique, CompactChiOpcode.Req.MakeUnique) ||
+    // 0x20-0x27 AtomicLoad, 0x28-0x2F AtomicStore, 0x30 AtomicSwap, 0x31 AtomicCompare.
     (opcode >= 0x20.U && opcode <= 0x31.U)
 
 
