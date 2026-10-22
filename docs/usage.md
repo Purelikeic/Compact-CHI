@@ -1,6 +1,6 @@
 # 使用 Compact CHI 请求方端口
 
-本仓库只有请求方要接到 AnserL2 上的类型、编码常量和一条不改 Flit 内容的队列。导入：
+本仓库只有请求方要接到 AnserL2 上的类型和编码常量。导入：
 
 ```scala
 import chisel3._
@@ -35,7 +35,7 @@ val wayBits = 3
 
 发出的 RSP/DAT 以及收到的 SNP，`txnID` 用的是 `dbidBits`，不是请求的 `txnIdBits`。这两个宽度可以不同。CompAck 和写数据都把完成消息里的 `dbID` 填进自己的 `txnID`。
 
-直接接到 AnserL2 时，本端口的 `txRsp`/`txDat` 就是 L2 的 `upRspIn`/`upDatIn`，`rxRsp`/`rxDat`/`rxSnp` 就是 L2 的 `upRsp`/`upDat`/`upSnp`。中间可以插入 `CompactChiRequesterBuffer`，它不改字段。
+直接接到 AnserL2 时，本端口的 `txRsp`/`txDat` 就是 L2 的 `upRspIn`/`upDatIn`，`rxRsp`/`rxDat`/`rxSnp` 就是 L2 的 `upRsp`/`upDat`/`upSnp`。
 
 ## 例：L1D 发 ReadShared，并在接受数据后回 CompAck
 
@@ -128,24 +128,6 @@ dat.byteEnable := ((BigInt(1) << c.byteEnableBits) - 1).U
 
 WriteBackFull 的数据 opcode 是 `CompactChiOpcode.Dat.CopyBackWrData`，同样使用完成消息里的 `dbID`。`byteEnable` 的宽度是 `dataBits / 8`，默认 256 位数据时为 32。
 
-## 例：在请求方和链路之间插入队列
-
-七个通道各有一个队列，默认深度 2，`pipe` 和 `flow` 都是 false。通道之间不排序，每个通道内部保持顺序。`buffered` 表示队列里还有 Flit。复位会丢掉这些 Flit，对端必须一起复位。
-
-```scala
-class BufferedRequester(c: CompactChiParams, wayBits: Int) extends Module {
-  val io = IO(new Bundle {
-    val core = Flipped(new CompactChiRequesterIO(c, wayBits))
-    val link = new CompactChiRequesterIO(c, wayBits)
-  })
-  val buffer = Module(new CompactChiRequesterBuffer(c, wayBits, depth = 2))
-  buffer.io.core <> io.core
-  io.link <> buffer.io.link
-}
-```
-
-`checkProtocol` 默认打开。某一拍 valid 为高且 ready 为低时，下一拍必须仍然 valid，并且 Flit 的每一位不变。Opcode 必须通过 `CompactChiEdge` 的 `legal*`。综合时若不需要这些检查，把 `checkProtocol` 设为 false。
-
 ## 不支持的情况
 
 本仓库不提供，也不要在这些类型上寻找的行为：
@@ -158,7 +140,7 @@ class BufferedRequester(c: CompactChiParams, wayBits: Int) extends Module {
 - RespErr 只有 `NoError = 0`、`DERR = 2`、`NDERR = 3`，没有 EXOK。
 - `0x11` CleanUnique 是保留编码，`legalReq` 为假。
 - 上游 DAT 的 opcode `1`（NCBWrDataCompAck）是保留编码。下游 DAT 只有 CompData。
-- 监视器不检查地址对齐、Size、Order、MemAttr、DBID 是否对得上，也不生成 Snoop 数据。
+- 不检查地址对齐、Size、Order、MemAttr，也不配对 DBID 或生成 Snoop 数据。
 
 和当前 AnserL2 对齐时，REQ 只发送 AnserL2 里 `CompactChiRequest.supportedByAnserL2` 覆盖的 opcode。这个函数不在本仓库：
 
