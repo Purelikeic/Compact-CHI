@@ -2,6 +2,13 @@ package anserl2.compactchi
 
 import chisel3.util.log2Ceil
 
+/** Single-core requester node IDs used by the Anser integration profile. */
+object CompactChiUpstreamNodeId {
+  val ICache = 0
+  val PTW = 1
+  val DCache = 2
+  val UnCache = 3
+}
 /** Widths taken from Compact CHI 0828 section 9.1. */
 final case class CompactChiParams(
   addrBits: Int = 48,

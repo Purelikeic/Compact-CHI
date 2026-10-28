@@ -100,6 +100,7 @@ class CompactChiSnpFlit(c: CompactChiParams) extends Bundle {
   val tgtID = UInt(c.upstreamNodeIdBits.W)
   val opcode = UInt(c.snpOpcodeBits.W)
   val addr = UInt(c.snoopAddrBits.W)
+  val tagAlias = UInt(c.tagAliasBits.W)
   val ns = Bool()
   val traceTag = Bool()
 }

@@ -85,7 +85,7 @@ class CompactChiEdgeSpec extends AnyFlatSpec with ChiselScalatestTester with Mat
 
   for ((txnBits, dbidBits) <- Seq((5, 9), (10, 7))) {
   it should s"route CompAck and SnpResp with independent TxnID=$txnBits DBID=$dbidBits widths" in {
-    val c = CompactChiParams(txnIdBits = txnBits, dbidBits = dbidBits)
+    val c = CompactChiParams(txnIdBits = txnBits, dbidBits = dbidBits, tagAliasBits = 2)
     test(new CompactChiResponseHarness(c)) { dut =>
       dut.io.rsp.txnID.getWidth shouldBe txnBits
       dut.io.rsp.dbID.getWidth shouldBe dbidBits
@@ -103,6 +103,8 @@ class CompactChiEdgeSpec extends AnyFlatSpec with ChiselScalatestTester with Mat
       dut.io.snp.srcID.poke(13.U)
       dut.io.snp.tgtID.poke(5.U)
       dut.io.snp.txnID.poke(85.U)
+      dut.io.snp.tagAlias.getWidth shouldBe c.tagAliasBits
+      dut.io.snp.tagAlias.poke(2.U)
       dut.io.snp.traceTag.poke(true.B)
       dut.io.rspAck.opcode.expect(CompactChiOpcode.Rsp.CompAck)
       dut.io.rspAck.srcID.expect(3.U)
