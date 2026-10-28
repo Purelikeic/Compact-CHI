@@ -1,12 +1,6 @@
 # CompactChiParams 的当前配置
 
-本文只讨论 `CompactChiParams()` 的默认值，也就是当前 AnserL2 `L2Cache()` 使用的那一套。字段定义在 `src/main/scala/anserl2/compactchi/CompactChiParams.scala`。`wayBits` 不属于这个类，它由缓存路数单独传入，八路时为 3。
-
-这些值分成三种：
-
-- 手册把编码宽度锁死，默认值取能够放下全部命名编码的最大宽度。
-- AnserL2 用现有资源数量算出最小宽度，默认值刚好等于它。
-- 手册只给了原则，默认值是当前系统的选择。改这一类时 L1 和 L2 必须一起改。
+本文只讨论 `CompactChiParams` 的字段和派生宽度。字段定义在 `src/main/scala/anserl2/compactchi/CompactChiParams.scala`。`wayBits` 不属于这个类，由具体缓存路数单独传入。
 
 ## 锁死的编码宽度
 
@@ -73,6 +67,14 @@ REQ 和 EVT 的字节地址宽度。手册 9.1 的字段表写的就是 48。`re
 
 默认 8 位可以同时标出 256 笔请求。它不从 MSHR 或 Slice 推出来，和 `dbidBits` 只是数值相同。L1 若要改小，必须和 L2 使用同一个值。
 
-### `tagAliasBits = 1`
+### `tagAliasBits`
 
-REQ 上的 `TagAlias` 宽度，用来区分 VIPT 别名。手册允许 0，0 表示不做硬件别名。AnserL2 的 `CacheParams.aliasBits` 也是 1，`L2Cache` 要求二者相等。仓库里没有从页大小或 L1 组数推出“必须是 1”的公式；1 是当前核心的选择。
+`TagAlias_Width` 由使用接口的 VIPT Cache 参数规格决定，或由其索引配置自动导出。协议包不假定固定值，也不固定解释为某几个虚拟地址位。REQ 和 SNP 必须使用相同的 `tagAliasBits`。
+
+显式构造参数：
+
+```scala
+val c = CompactChiParams(tagAliasBits = dCacheTagAliasBits)
+```
+
+配置为 0 表示系统不启用硬件别名维护。

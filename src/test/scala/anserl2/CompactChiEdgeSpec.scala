@@ -60,7 +60,7 @@ class CompactChiEdgeSpec extends AnyFlatSpec with ChiselScalatestTester with Mat
     CompactChiResp.UC_PD.litValue shouldBe 6
   }
   it should "validate the supported Compact CHI endpoint message sets" in {
-    val c = CompactChiParams()
+    val c = CompactChiParams(tagAliasBits = 2)
     test(new CompactChiEdgeHarness(c)) { dut =>
       dut.io.req.poke(CompactChiOpcode.Req.ReadShared)
       dut.io.evt.poke(CompactChiOpcode.Evt.WriteBackFull)
@@ -136,7 +136,7 @@ class CompactChiEdgeSpec extends AnyFlatSpec with ChiselScalatestTester with Mat
   }
 
   it should "classify assigned REQ encodings by legality, CompAck and data response" in {
-    test(new CompactChiEdgeHarness(CompactChiParams())) { dut =>
+    test(new CompactChiEdgeHarness(CompactChiParams(tagAliasBits = 2))) { dut =>
       val defined = Set(0, 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 16, 18) ++ (0x20 to 0x31)
       for (op <- 0 until 64) {
         dut.io.req.poke(op.U)

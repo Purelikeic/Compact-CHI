@@ -16,7 +16,7 @@ final case class CompactChiParams(
   downstreamNodeIdBits: Int = 7,
   txnIdBits: Int = 8,
   dbidBits: Int = 8,
-  tagAliasBits: Int = 1,
+  tagAliasBits: Int,
   dataBits: Int = 256,
   dataIdBits: Int = 1,
   downReqOpcodeBits: Int = 7,

@@ -21,14 +21,16 @@ CompactChiUpstreamNodeId.UnCache // 0b11
 
 这只是系统集成约定，公共 NodeID 字段的宽度仍由 `CompactChiParams` 参数决定。
 
-默认配置：
+与具体请求方的 VIPT 参数一起构造 `CompactChiParams`。`tagAliasBits` 没有协议包默认值，必须由 DCache、ICache 等上游 Cache 的参数规格显式传入，或者由其索引配置自动导出。
 
 ```scala
-val c = CompactChiParams()
+val c = CompactChiParams(
+  tagAliasBits = dCacheTagAliasBits,
+)
 val wayBits = 3 // 八路缓存
 ```
 
-默认数据宽度为 256 bit，因此一条 64B 缓存行包含两拍数据。`dataIdBits` 必须满足：
+数据宽度由系统配置决定。默认数据宽度为 256 bit 时，一条 64B 缓存行包含两拍数据。`dataIdBits` 必须满足：
 
 ```scala
 dataIdBits == log2Ceil(512 / dataBits)
