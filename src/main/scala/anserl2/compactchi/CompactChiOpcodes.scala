@@ -8,6 +8,16 @@ object CompactChiRespErr {
   val DERR = 2.U(2.W)
 }
 
+/** Compact CHI Resp encodings from guide section 9.2.17. */
+object CompactChiResp {
+  val I = 0.U(3.W)
+  val SC = 1.U(3.W)
+  val UC = 2.U(3.W)
+  val I_PD = 4.U(3.W)
+  val SC_PD = 5.U(3.W)
+  val UC_PD = 6.U(3.W)
+}
+
 object CompactChiOpcode {
   object Evt {
     val Evict = 0.U(1.W)

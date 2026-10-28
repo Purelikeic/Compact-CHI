@@ -51,6 +51,14 @@ class CompactChiResponseHarness(c: CompactChiParams) extends Module {
 }
 
 class CompactChiEdgeSpec extends AnyFlatSpec with ChiselScalatestTester with Matchers {
+  it should "define Compact CHI Resp encodings without a state checker" in {
+    CompactChiResp.I.litValue shouldBe 0
+    CompactChiResp.SC.litValue shouldBe 1
+    CompactChiResp.UC.litValue shouldBe 2
+    CompactChiResp.I_PD.litValue shouldBe 4
+    CompactChiResp.SC_PD.litValue shouldBe 5
+    CompactChiResp.UC_PD.litValue shouldBe 6
+  }
   it should "validate the supported Compact CHI endpoint message sets" in {
     val c = CompactChiParams()
     test(new CompactChiEdgeHarness(c)) { dut =>
